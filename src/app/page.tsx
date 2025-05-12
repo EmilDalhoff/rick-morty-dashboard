@@ -2,21 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import Link from 'next/link'
 
 import { Character } from '@/types'
 import { getCharacters } from '@/lib/api'
 import SearchBar from '@/components/SearchBar'
-import CharacterCard from '@/components/CharacterCard'
-import CharacterDetail from '@/components/CharacterDetail'
+import CharacterTable from '@/components/CharacterTable'
 
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -30,7 +25,6 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(0)
-  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -145,66 +139,51 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <header className="bg-black text-white p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">Rick and Morty Characters</h1>
-        <div className="w-20 h-10 relative">
-          <Image
-            src="/rickmorty.png"
-            alt="Rick and Morty"
-            fill
-            style={{ objectFit: 'contain' }}
-            priority
-          />
-        </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <SearchBar onSearch={handleSearch} />
-        </div>
-
-        <div className="text-sm text-gray-500 mb-4">
-          Page {currentPage} of {totalPages} • {characters.length} characters
-        </div>
-
-        {error ? (
-          <Card className="border-red-200 bg-red-50 mb-6">
-            <CardContent className="pt-6 text-center text-red-600">{error}</CardContent>
-          </Card>
-        ) : loading ? (
-          <div className="flex justify-center my-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+    <main className="min-h-screen bg-[#1f3027]">
+      <div className="container mx-auto px-4">
+        <header className="bg-[#1f3027] text-white py-4 flex justify-between items-center border-b border-[#44d579]/30">
+          <h1 className="text-lg sm:text-xl font-bold text-green-300">Rick & Morty Dashboard with special stats!</h1>
+          <div className="w-16 h-16 sm:w-20 sm:h-20 relative">
+            <Image
+              src="/rickmorty.png"
+              alt="Rick and Morty"
+              fill
+              style={{ objectFit: 'contain' }}
+              priority
+            />
           </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {characters.map((character) => (
-                <CharacterCard
-                  key={character.id}
-                  character={character}
-                  onClick={() => setSelectedCharacter(character)}
-                />
-              ))}
-            </div>
+        </header>
 
-            <div className="flex justify-center items-center mt-6">
-              {renderPagination()}
+        <div className="py-6">
+          <div className="mb-6">
+            <SearchBar onSearch={handleSearch} />
+          </div>
+
+          <div className="flex justify-between items-center mb-4">
+            <div className="text-sm text-green-200">
+              Page {currentPage} of {totalPages} • {characters.length} characters
             </div>
-          </>
-        )}
+          </div>
+
+          {error ? (
+            <Card className="border-red-200 bg-red-50 mb-6">
+              <CardContent className="pt-6 text-center text-red-600">{error}</CardContent>
+            </Card>
+          ) : loading && characters.length === 0 ? (
+            <div className="flex justify-center my-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+            </div>
+          ) : (
+            <>
+              <CharacterTable characters={characters} isLoading={loading} />
+
+              <div className="flex justify-center items-center mt-6">
+                {renderPagination()}
+              </div>
+            </>
+          )}
+        </div>
       </div>
-
-      <Dialog
-        open={!!selectedCharacter}
-        onOpenChange={(open) => !open && setSelectedCharacter(null)}
-      >
-        {selectedCharacter && (
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-auto">
-            <CharacterDetail character={selectedCharacter} />
-          </DialogContent>
-        )}
-      </Dialog>
     </main>
   )
 }
