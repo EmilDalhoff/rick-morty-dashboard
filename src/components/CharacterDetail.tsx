@@ -6,25 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 
-interface Episode {
-  id: number;
-  name: string;
-  episode: string; // format: S01E01
-}
+import { Episode as EpisodeType } from '@/types';
 
 interface CharacterDetailProps {
   character: Character;
 }
 
 export default function CharacterDetail({ character }: CharacterDetailProps) {
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [episodes, setEpisodes] = useState<EpisodeType[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchEpisodes() {
       try {
         setLoading(true);
-        // Fetch all episodes for the character
         const episodePromises = character.episode.map(url => 
           fetch(url).then(res => res.json())
         );
@@ -48,13 +43,13 @@ export default function CharacterDetail({ character }: CharacterDetailProps) {
       case 'Dead':
         return <Badge variant="outline" className="bg-red-900/50 text-red-300 border-red-500">{status}</Badge>;
       default:
-        return <Badge variant="outline" className="bg-red-500 text-gray-300 border-gray-500">{status}</Badge>;
+        return <Badge variant="outline" className="bg-gray-700/50 text-gray-300 border-gray-500">{status}</Badge>;
     }
   };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-200 bg-[#1f3027]">
-      {/* Character Information Card */}
+      
       <Card className="md:col-span-1 shadow-sm bg-[#1a2b24] border border-gray-700">
         <CardHeader className="pb-2">
           <div className="relative w-full pb-[100%] rounded-md overflow-hidden mb-4 border border-green-600">
@@ -68,24 +63,29 @@ export default function CharacterDetail({ character }: CharacterDetailProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
+            
             <div className="flex justify-between">
               <span className="font-medium text-gray-300">Status:</span>
               {getStatusBadge(character.status)}
             </div>
+           
             <div className="flex justify-between">
               <span className="font-medium text-gray-300">Gender:</span>
               <span className="text-gray-300">{character.gender}</span>
             </div>
+            
             <div className="flex justify-between">
               <span className="font-medium text-gray-300">Species:</span>
               <span className="text-gray-300">{character.species}</span>
             </div>
+          
             <div className="flex justify-between">
               <span className="font-medium text-gray-300">Origin:</span>
               <span className="text-right truncate max-w-[180px] text-gray-300" title={character.origin.name}>
                 {character.origin.name}
               </span>
             </div>
+           
             <div className="flex justify-between">
               <span className="font-medium text-gray-300">Location:</span>
               <span className="text-right truncate max-w-[180px] text-gray-300" title={character.location.name}>
@@ -96,7 +96,7 @@ export default function CharacterDetail({ character }: CharacterDetailProps) {
         </CardContent>
       </Card>
 
-      {/* Episodes Card */}
+      
       <Card className="md:col-span-1 shadow-sm bg-[#1a2b24] border border-gray-700">
         <CardHeader>
           <CardTitle className="text-lg text-green-300">Episodes ({character.episode.length})</CardTitle>
@@ -109,7 +109,7 @@ export default function CharacterDetail({ character }: CharacterDetailProps) {
               ))}
             </div>
           ) : (
-            <div className="overflow-y-auto max-h-60 pr-1">
+            <div className="overflow-y-auto max-h-140 pr-1">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-700">

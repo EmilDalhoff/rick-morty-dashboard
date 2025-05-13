@@ -36,8 +36,8 @@ export default function CharacterRow({ character }: CharacterRowProps) {
         className="border-b border-gray-700 hover:bg-gray-700/50 cursor-pointer transition-colors"
         onClick={toggleExpand}
       >
-        <td className="py-3 px-4 font-medium flex items-center gap-2 text-green-200">
-          {character.name}
+        <td className="py-3 px-4 font-medium text-nowrap flex items-center gap-2 text-green-200">
+          {character.name} 
           {expanded ? 
             <ChevronUp size={16} className="text-green-400" /> : 
             <ChevronDown size={16} className="text-green-400" />

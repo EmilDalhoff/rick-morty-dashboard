@@ -1,31 +1,33 @@
-// components/SearchBar.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
+  initialValue?: string;
 }
 
-export default function SearchBar({ onSearch }: SearchBarProps) {
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState(query);
+export default function SearchBar({ onSearch, initialValue = '' }: SearchBarProps) {
+  // Using internal state for immediate UI feedback
+  const [value, setValue] = useState(initialValue);
+  const [debouncedQuery, setDebouncedQuery] = useState(value);
 
   // Handle input changes
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setQuery(e.target.value);
+    const newValue = e.target.value;
+    setValue(newValue);
   };
 
-  // Debounce the search query to avoid excessive API calls
+  // Debounce the search query 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedQuery(query);
+      setDebouncedQuery(value);
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [value]);
 
   // Trigger search when debounced query changes
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
         <Input
           type="search"
           placeholder="Search by character name..."
-          value={query}
+          value={value}
           onChange={handleChange}
           className="pl-10 w-full bg-[#1a2b24] border-[#44d579]/30 text-gray-200 placeholder:text-gray-400 focus-visible:ring-[#44d579] focus-visible:border-[#44d579]"
         />
