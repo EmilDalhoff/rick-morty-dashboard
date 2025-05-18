@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useCallback } from 'react'
 import Image from 'next/image'
 
 import { Character } from '@/types'
@@ -24,8 +24,15 @@ import { useSearchParams } from 'next/navigation'
 import { useDebounce } from '@/hooks/useDebounce'
 
 function CharacterSearch({ 
-  onLoadCharacters 
+  searchInput,
+  currentPage,
+  filters,
+  onLoadCharacters,
+  onUpdateSearchQuery
 }: { 
+  searchInput: string,
+  currentPage: number,
+  filters: FilterOptions,
   onLoadCharacters: (
     characters: Character[], 
     totalPages: number, 
@@ -34,7 +41,8 @@ function CharacterSearch({
     currentPage: number,
     searchQuery: string,
     filters: FilterOptions
-  ) => void 
+  ) => void,
+  onUpdateSearchQuery: (query: string) => void
 }) {
   const searchParams = useSearchParams()
   
@@ -51,26 +59,34 @@ function CharacterSearch({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState(initialSearch)
-  const [filters, setFilters] = useState<FilterOptions>(initialFilters)
-  const [currentPage, setCurrentPage] = useState(initialPage)
+  const [internalFilters, setInternalFilters] = useState<FilterOptions>(initialFilters)
+  const [internalPage, setInternalPage] = useState(initialPage)
   const [totalPages, setTotalPages] = useState(0)
-  const [searchInput, setSearchInput] = useState(initialSearch)
   const debouncedSearch = useDebounce(searchInput, 380)
+
+  // Use the props from parent when they change
+  useEffect(() => {
+    setInternalFilters(filters);
+  }, [filters]);
+
+  useEffect(() => {
+    setInternalPage(currentPage);
+  }, [currentPage]);
 
   // Update URL when parameters change
   useEffect(() => {
     const params = new URLSearchParams()
     
-    if (currentPage > 1) params.set('page', currentPage.toString())
+    if (internalPage > 1) params.set('page', internalPage.toString())
     if (searchQuery) params.set('search', searchQuery)
     
-    Object.entries(filters).forEach(([key, value]) => {
+    Object.entries(internalFilters).forEach(([key, value]) => {
       if (value) params.set(key, value.toString())
     })
     
     const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`
     window.history.replaceState(null, '', newUrl)
-  }, [currentPage, searchQuery, filters])
+  }, [internalPage, searchQuery, internalFilters])
 
   useEffect(() => {
     let isMounted = true
@@ -78,7 +94,7 @@ function CharacterSearch({
     async function fetchCharacters() {
       try {
         setLoading(true)
-        const data = await getCharacters(currentPage, searchQuery, filters)
+        const data = await getCharacters(internalPage, searchQuery, internalFilters)
 
         if (!isMounted) return
 
@@ -101,21 +117,30 @@ function CharacterSearch({
 
     fetchCharacters()
     return () => { isMounted = false }
-  }, [currentPage, searchQuery, filters])
+  }, [internalPage, searchQuery, internalFilters])
 
   useEffect(() => {
     if (debouncedSearch !== searchQuery) {
       setSearchQuery(debouncedSearch)
-      if (currentPage !== 1) setCurrentPage(1)
+      onUpdateSearchQuery(debouncedSearch)
+      if (internalPage !== 1) setInternalPage(1)
     }
-  }, [debouncedSearch])
+  }, [debouncedSearch, onUpdateSearchQuery])
 
+  // Update parent component with current state
   useEffect(() => {
-    // Update parent component with current state
-    onLoadCharacters(characters, totalPages, error, loading, currentPage, searchQuery, filters)
-  }, [characters, totalPages, error, loading, currentPage, searchQuery, filters, onLoadCharacters])
+    onLoadCharacters(
+      characters, 
+      totalPages, 
+      error, 
+      loading, 
+      internalPage, 
+      searchQuery, 
+      internalFilters
+    )
+  }, [characters, totalPages, error, loading, internalPage, searchQuery, internalFilters, onLoadCharacters])
 
-  return null // This component just manages state and doesn't render anything
+  return null
 }
 
 export default function Home() {
@@ -132,7 +157,7 @@ export default function Home() {
   })
   const [searchInput, setSearchInput] = useState('')
 
-  const handleLoadCharacters = (
+  const handleLoadCharacters = useCallback((
     chars: Character[], 
     pages: number, 
     err: string | null, 
@@ -148,8 +173,11 @@ export default function Home() {
     setCurrentPage(page)
     setSearchQuery(query)
     setFilters(filterOpts)
-    setSearchInput(query)
-  }
+  }, [])
+
+  const handleUpdateSearchQuery = useCallback((query: string) => {
+    setSearchQuery(query)
+  }, [])
 
   const handleSearch = (query: string) => {
     setSearchInput(query)
@@ -272,12 +300,18 @@ export default function Home() {
         <Suspense fallback={<div className="flex justify-center my-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
         </div>}>
-          <CharacterSearch onLoadCharacters={handleLoadCharacters} />
+          <CharacterSearch 
+            searchInput={searchInput}
+            currentPage={currentPage}
+            filters={filters}
+            onLoadCharacters={handleLoadCharacters}
+            onUpdateSearchQuery={handleUpdateSearchQuery}
+          />
         </Suspense>
 
         <div className="py-6">
           <div className="mb-6">
-            <SearchBar initialValue={searchInput} onSearch={handleSearch} />
+            <SearchBar initialValue={searchQuery} onSearch={handleSearch} />
             <CharacterFilter 
               onFilterChange={handleFilterChange} 
               activeFilters={filters}
