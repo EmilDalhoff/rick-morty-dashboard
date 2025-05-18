@@ -1,15 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Image from 'next/image'
-import { useSearchParams } from 'next/navigation'
 
 import { Character } from '@/types'
 import { getCharacters } from '@/lib/api'
 import SearchBar from '@/components/SearchBar'
 import CharacterTable from '@/components/CharacterTable'
 import CharacterFilter, { FilterOptions } from '@/components/CharacterFilter'
-import { useDebounce } from '@/hooks/useDebounce'
 
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -21,7 +19,23 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination'
 
-export default function Home() {
+// Create a separate client component for search params functionality
+import { useSearchParams } from 'next/navigation'
+import { useDebounce } from '@/hooks/useDebounce'
+
+function CharacterSearch({ 
+  onLoadCharacters 
+}: { 
+  onLoadCharacters: (
+    characters: Character[], 
+    totalPages: number, 
+    error: string | null, 
+    isLoading: boolean,
+    currentPage: number,
+    searchQuery: string,
+    filters: FilterOptions
+  ) => void 
+}) {
   const searchParams = useSearchParams()
   
   // Get initial values from URL parameters
@@ -41,7 +55,7 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(initialPage)
   const [totalPages, setTotalPages] = useState(0)
   const [searchInput, setSearchInput] = useState(initialSearch)
-  const debouncedSearch = useDebounce(searchInput, 380) // Using a non-standard delay
+  const debouncedSearch = useDebounce(searchInput, 380)
 
   // Update URL when parameters change
   useEffect(() => {
@@ -92,14 +106,53 @@ export default function Home() {
   useEffect(() => {
     if (debouncedSearch !== searchQuery) {
       setSearchQuery(debouncedSearch)
-      // Only reset page if we're not on page 1 and search has changed
       if (currentPage !== 1) setCurrentPage(1)
     }
   }, [debouncedSearch])
 
+  useEffect(() => {
+    // Update parent component with current state
+    onLoadCharacters(characters, totalPages, error, loading, currentPage, searchQuery, filters)
+  }, [characters, totalPages, error, loading, currentPage, searchQuery, filters, onLoadCharacters])
+
+  return null // This component just manages state and doesn't render anything
+}
+
+export default function Home() {
+  const [characters, setCharacters] = useState<Character[]>([])
+  const [totalPages, setTotalPages] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState<FilterOptions>({
+    status: null,
+    gender: null,
+    species: null
+  })
+  const [searchInput, setSearchInput] = useState('')
+
+  const handleLoadCharacters = (
+    chars: Character[], 
+    pages: number, 
+    err: string | null, 
+    isLoading: boolean,
+    page: number,
+    query: string,
+    filterOpts: FilterOptions
+  ) => {
+    setCharacters(chars)
+    setTotalPages(pages)
+    setError(err)
+    setLoading(isLoading)
+    setCurrentPage(page)
+    setSearchQuery(query)
+    setFilters(filterOpts)
+    setSearchInput(query)
+  }
+
   const handleSearch = (query: string) => {
     setSearchInput(query)
-    // Page reset now happens in the effect when debouncedSearch changes
   }
   
   const handleFilterChange = (newFilters: FilterOptions) => {
@@ -127,7 +180,6 @@ export default function Home() {
     )
   }
 
-  // Create pagination URL params once to reuse in multiple places
   const getPaginationParams = (page: number) => {
     const params = new URLSearchParams()
     if (page) params.set('page', page.toString())
@@ -216,9 +268,16 @@ export default function Home() {
           </div>
         </header>
 
+        {/* Wrap search params in Suspense */}
+        <Suspense fallback={<div className="flex justify-center my-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+        </div>}>
+          <CharacterSearch onLoadCharacters={handleLoadCharacters} />
+        </Suspense>
+
         <div className="py-6">
           <div className="mb-6">
-            <SearchBar initialValue={searchQuery} onSearch={handleSearch} />
+            <SearchBar initialValue={searchInput} onSearch={handleSearch} />
             <CharacterFilter 
               onFilterChange={handleFilterChange} 
               activeFilters={filters}
