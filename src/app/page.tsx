@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useEffect, Suspense, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import { useSearchParams } from 'next/navigation'
 
 import { Character } from '@/types'
 import { getCharacters } from '@/lib/api'
 import SearchBar from '@/components/SearchBar'
 import CharacterTable from '@/components/CharacterTable'
 import CharacterFilter, { FilterOptions } from '@/components/CharacterFilter'
+import { useDebounce } from '@/hooks/useDebounce'
 
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -19,31 +21,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination'
 
-// Create a separate client component for search params functionality
-import { useSearchParams } from 'next/navigation'
-import { useDebounce } from '@/hooks/useDebounce'
-
-function CharacterSearch({ 
-  searchInput,
-  currentPage,
-  filters,
-  onLoadCharacters,
-  onUpdateSearchQuery
-}: { 
-  searchInput: string,
-  currentPage: number,
-  filters: FilterOptions,
-  onLoadCharacters: (
-    characters: Character[], 
-    totalPages: number, 
-    error: string | null, 
-    isLoading: boolean,
-    currentPage: number,
-    searchQuery: string,
-    filters: FilterOptions
-  ) => void,
-  onUpdateSearchQuery: (query: string) => void
-}) {
+export default function Home() {
   const searchParams = useSearchParams()
   
   // Get initial values from URL parameters
@@ -59,34 +37,26 @@ function CharacterSearch({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState(initialSearch)
-  const [internalFilters, setInternalFilters] = useState<FilterOptions>(initialFilters)
-  const [internalPage, setInternalPage] = useState(initialPage)
+  const [filters, setFilters] = useState<FilterOptions>(initialFilters)
+  const [currentPage, setCurrentPage] = useState(initialPage)
   const [totalPages, setTotalPages] = useState(0)
-  const debouncedSearch = useDebounce(searchInput, 380)
-
-  // Use the props from parent when they change
-  useEffect(() => {
-    setInternalFilters(filters);
-  }, [filters]);
-
-  useEffect(() => {
-    setInternalPage(currentPage);
-  }, [currentPage]);
+  const [searchInput, setSearchInput] = useState(initialSearch)
+  const debouncedSearch = useDebounce(searchInput, 380) // Using a non-standard delay
 
   // Update URL when parameters change
   useEffect(() => {
     const params = new URLSearchParams()
     
-    if (internalPage > 1) params.set('page', internalPage.toString())
+    if (currentPage > 1) params.set('page', currentPage.toString())
     if (searchQuery) params.set('search', searchQuery)
     
-    Object.entries(internalFilters).forEach(([key, value]) => {
+    Object.entries(filters).forEach(([key, value]) => {
       if (value) params.set(key, value.toString())
     })
     
     const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`
     window.history.replaceState(null, '', newUrl)
-  }, [internalPage, searchQuery, internalFilters])
+  }, [currentPage, searchQuery, filters])
 
   useEffect(() => {
     let isMounted = true
@@ -94,7 +64,7 @@ function CharacterSearch({
     async function fetchCharacters() {
       try {
         setLoading(true)
-        const data = await getCharacters(internalPage, searchQuery, internalFilters)
+        const data = await getCharacters(currentPage, searchQuery, filters)
 
         if (!isMounted) return
 
@@ -117,70 +87,19 @@ function CharacterSearch({
 
     fetchCharacters()
     return () => { isMounted = false }
-  }, [internalPage, searchQuery, internalFilters])
+  }, [currentPage, searchQuery, filters])
 
   useEffect(() => {
     if (debouncedSearch !== searchQuery) {
       setSearchQuery(debouncedSearch)
-      onUpdateSearchQuery(debouncedSearch)
-      if (internalPage !== 1) setInternalPage(1)
+      // Only reset page if we're not on page 1 and search has changed
+      if (currentPage !== 1) setCurrentPage(1)
     }
-  }, [debouncedSearch, onUpdateSearchQuery])
-
-  // Update parent component with current state
-  useEffect(() => {
-    onLoadCharacters(
-      characters, 
-      totalPages, 
-      error, 
-      loading, 
-      internalPage, 
-      searchQuery, 
-      internalFilters
-    )
-  }, [characters, totalPages, error, loading, internalPage, searchQuery, internalFilters, onLoadCharacters])
-
-  return null
-}
-
-export default function Home() {
-  const [characters, setCharacters] = useState<Character[]>([])
-  const [totalPages, setTotalPages] = useState(0)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filters, setFilters] = useState<FilterOptions>({
-    status: null,
-    gender: null,
-    species: null
-  })
-  const [searchInput, setSearchInput] = useState('')
-
-  const handleLoadCharacters = useCallback((
-    chars: Character[], 
-    pages: number, 
-    err: string | null, 
-    isLoading: boolean,
-    page: number,
-    query: string,
-    filterOpts: FilterOptions
-  ) => {
-    setCharacters(chars)
-    setTotalPages(pages)
-    setError(err)
-    setLoading(isLoading)
-    setCurrentPage(page)
-    setSearchQuery(query)
-    setFilters(filterOpts)
-  }, [])
-
-  const handleUpdateSearchQuery = useCallback((query: string) => {
-    setSearchQuery(query)
-  }, [])
+  }, [debouncedSearch])
 
   const handleSearch = (query: string) => {
     setSearchInput(query)
+    // Page reset now happens in the effect when debouncedSearch changes
   }
   
   const handleFilterChange = (newFilters: FilterOptions) => {
@@ -208,6 +127,7 @@ export default function Home() {
     )
   }
 
+  // Create pagination URL params once to reuse in multiple places
   const getPaginationParams = (page: number) => {
     const params = new URLSearchParams()
     if (page) params.set('page', page.toString())
@@ -295,19 +215,6 @@ export default function Home() {
             />
           </div>
         </header>
-
-        {/* Wrap search params in Suspense */}
-        <Suspense fallback={<div className="flex justify-center my-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-        </div>}>
-          <CharacterSearch 
-            searchInput={searchInput}
-            currentPage={currentPage}
-            filters={filters}
-            onLoadCharacters={handleLoadCharacters}
-            onUpdateSearchQuery={handleUpdateSearchQuery}
-          />
-        </Suspense>
 
         <div className="py-6">
           <div className="mb-6">
