@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import { useSearchParams } from 'next/navigation'
 
 import { Character } from '@/types'
 import { getCharacters } from '@/lib/api'
@@ -20,51 +21,27 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination'
 
-// Create a simple wrapper component for useSearchParams
-function SearchParamsWrapper({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
-}
-
 export default function Home() {
-  // Initialize with default values
+  const searchParams = useSearchParams()
+  
+  // Get initial values from URL parameters
+  const initialPage = Number(searchParams.get('page')) || 1
+  const initialSearch = searchParams.get('search') || ''
+  const initialFilters: FilterOptions = {
+    status: searchParams.get('status') as FilterOptions['status'],
+    gender: searchParams.get('gender') as FilterOptions['gender'],
+    species: searchParams.get('species') as FilterOptions['species']
+  }
+
   const [characters, setCharacters] = useState<Character[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filters, setFilters] = useState<FilterOptions>({
-    status: null,
-    gender: null,
-    species: null
-  })
-  const [currentPage, setCurrentPage] = useState(1)
+  const [searchQuery, setSearchQuery] = useState(initialSearch)
+  const [filters, setFilters] = useState<FilterOptions>(initialFilters)
+  const [currentPage, setCurrentPage] = useState(initialPage)
   const [totalPages, setTotalPages] = useState(0)
-  const [searchInput, setSearchInput] = useState('')
-  const debouncedSearch = useDebounce(searchInput, 380)
-
-  // This extra component only exists to isolate useSearchParams
-  function UrlParamsInitializer() {
-    const { useSearchParams } = require('next/navigation')
-    const searchParams = useSearchParams()
-    
-    useEffect(() => {
-      // Get initial values from URL parameters
-      const initialPage = Number(searchParams.get('page')) || 1
-      const initialSearch = searchParams.get('search') || ''
-      const initialFilters: FilterOptions = {
-        status: searchParams.get('status') as FilterOptions['status'],
-        gender: searchParams.get('gender') as FilterOptions['gender'],
-        species: searchParams.get('species') as FilterOptions['species']
-      }
-      
-      // Set initial values
-      setCurrentPage(initialPage)
-      setSearchQuery(initialSearch)
-      setSearchInput(initialSearch)
-      setFilters(initialFilters)
-    }, [searchParams])
-    
-    return null
-  }
+  const [searchInput, setSearchInput] = useState(initialSearch)
+  const debouncedSearch = useDebounce(searchInput, 380) // Using a non-standard delay
 
   // Update URL when parameters change
   useEffect(() => {
@@ -225,11 +202,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#1f3027]">
-      {/* Wrap the params component in Suspense */}
-      <Suspense fallback={null}>
-        <UrlParamsInitializer />
-      </Suspense>
-
       <div className="container mx-auto px-4">
         <header className="bg-[#1f3027] text-white py-4 flex justify-between items-center border-b border-[#44d579]/30">
           <h1 className="text-lg sm:text-xl font-bold text-green-300">Rick & Morty Dashboard</h1>
